@@ -8,12 +8,12 @@ only reads state: it sends no vehicle commands, so it needs no phone key and no 
 
 ## What shows up in Home
 
-The vehicle's own accessory holds the lock and battery. Every other sensor is a separate accessory named after the
+The vehicle's own accessory holds only the lock. Every other sensor is a separate accessory named after the
 vehicle (for example "R1S Doors"), so the Home app gives each its own tile:
 
 | Service | Shows | Notes |
 | --- | --- | --- |
-| Battery | Charge %, charging, low battery | Low battery threshold is configurable (default 20%). |
+| Charge | Charge % on the tile, plus charging state and low battery | Shown as a humidity sensor, the only type Home shows a % for on the tile, so automations read "humidity". Low battery threshold is configurable (default 20%). |
 | Lock | Locked when all four doors are locked | Status only; it can't lock or unlock. |
 | Contact sensors | Doors, Windows, Frunk, Liftgate (R1S, R2) or Tailgate and Tonneau (R1T), Charge Port | "Open" if any one is open. |
 | Plugged In | Occupancy sensor: Detected while the charge cable is connected | |

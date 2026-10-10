@@ -5,14 +5,14 @@ import type { VehicleStatus } from './state';
 
 const KM_PER_MILE = 1.609344;
 
-/** Services that lived on the main accessory before 0.3.0, removed from its cache on upgrade. */
+/** Services that used to live on the main accessory, removed from its cache on upgrade. */
 const LEGACY_SUBTYPES = [
-  'doors', 'windows', 'frunk', 'liftgate', 'tailgate', 'tonneau', 'charge-port', 'charge-cable',
+  'battery', 'doors', 'windows', 'frunk', 'liftgate', 'tailgate', 'tonneau', 'charge-port', 'charge-cable',
   'plugged-in', 'cabin', 'range',
 ];
 
 /**
- * Exposes one vehicle to HomeKit, read-only. The vehicle's own accessory holds the lock and battery;
+ * Exposes one vehicle to HomeKit, read-only. The vehicle's own accessory holds only the lock;
  * every other sensor is a separate accessory so the Home app gives each its own tile.
  * Nothing here writes to the vehicle.
  */
@@ -20,7 +20,8 @@ export class VehicleAccessory {
   private readonly S;
   private readonly C;
   private readonly isTruck: boolean;
-  private readonly battery: Service;
+  private readonly charge?: Service;
+  private readonly battery?: Service;
   private readonly lock?: Service;
   private readonly contacts = new Map<string, { service: Service; isOpen: (s: VehicleStatus) => boolean | undefined }>();
   private readonly pluggedIn?: Service;
@@ -45,8 +46,6 @@ export class VehicleAccessory {
       }
     }
 
-    this.battery = this.service(main, this.S.Battery, 'Battery', 'battery');
-
     const lock = main.getServiceById(this.S.LockMechanism, 'lock');
     if (cfg.showLock) {
       this.lock = this.service(main, this.S.LockMechanism, 'Locks', 'lock');
@@ -56,6 +55,14 @@ export class VehicleAccessory {
       this.lock.getCharacteristic(this.C.LockTargetState).setProps(readOnly);
     } else if (lock) {
       main.removeService(lock);
+    }
+
+    // Home only shows a percentage on a tile for humidity, so the charge level uses a humidity sensor.
+    // The battery service beside it carries charging state and the low-battery alert.
+    this.charge = this.sensor(cfg.showCharge, 'charge', this.S.HumiditySensor, 'Charge');
+    if (this.charge) {
+      const accessory = this.platform.accessoryFor(vehicle, 'charge');
+      this.battery = this.service(accessory, this.S.Battery, 'Battery', 'battery');
     }
 
     this.contact(cfg.showDoors, 'doors', 'Doors', (s) => s.doorsOpen);
@@ -123,6 +130,7 @@ export class VehicleAccessory {
     };
 
     if (status.batteryPercent !== undefined) {
+      set(this.charge, C.CurrentRelativeHumidity, status.batteryPercent);
       set(this.battery, C.BatteryLevel, status.batteryPercent);
       set(this.battery, C.StatusLowBattery, status.batteryPercent <= this.platform.lowBatteryPercent
         ? C.StatusLowBattery.BATTERY_LEVEL_LOW

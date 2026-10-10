@@ -12,6 +12,7 @@ interface RivianStatusConfig extends PlatformConfig {
   lowBatteryPercent?: number;
   rangeUnit?: 'mi' | 'km';
   showLock?: boolean;
+  showCharge?: boolean;
   showDoors?: boolean;
   showWindows?: boolean;
   showFrunk?: boolean;
@@ -28,6 +29,7 @@ interface RivianStatusConfig extends PlatformConfig {
 /** Display toggles, with the defaults applied. */
 export interface DisplayConfig {
   showLock: boolean;
+  showCharge: boolean;
   showDoors: boolean;
   showWindows: boolean;
   showFrunk: boolean;
@@ -57,6 +59,7 @@ export class RivianStatusPlatform implements DynamicPlatformPlugin {
     const on = (v: boolean | undefined) => v ?? true;
     this.cfg = {
       showLock: on(c.showLock),
+      showCharge: on(c.showCharge),
       showDoors: on(c.showDoors),
       showWindows: on(c.showWindows),
       showFrunk: on(c.showFrunk),

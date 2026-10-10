@@ -31,6 +31,12 @@
           { "title": "Kilometers", "enum": ["km"] }
         ]
       },
+      "showCharge": {
+        "title": "Charge level tile",
+        "type": "boolean",
+        "default": true,
+        "description": "Shows the charge % on its own tile. Home only shows a percentage on a tile for humidity sensors, so it appears as one in details and automations."
+      },
       "showLock": { "title": "Locks (status only)", "type": "boolean", "default": true },
       "showDoors": { "title": "Doors contact sensor", "type": "boolean", "default": true },
       "showWindows": { "title": "Windows contact sensor", "type": "boolean", "default": true },
