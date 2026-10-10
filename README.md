@@ -8,7 +8,8 @@ only reads state: it sends no vehicle commands, so it needs no phone key and no 
 
 ## What shows up in Home
 
-One accessory per vehicle, with:
+The vehicle's own accessory holds the lock and battery. Every other sensor is a separate accessory named after the
+vehicle (for example "R1S Doors"), so the Home app gives each its own tile:
 
 | Service | Shows | Notes |
 | --- | --- | --- |

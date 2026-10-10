@@ -5,8 +5,15 @@ import type { VehicleStatus } from './state';
 
 const KM_PER_MILE = 1.609344;
 
+/** Services that lived on the main accessory before 0.3.0, removed from its cache on upgrade. */
+const LEGACY_SUBTYPES = [
+  'doors', 'windows', 'frunk', 'liftgate', 'tailgate', 'tonneau', 'charge-port', 'charge-cable',
+  'plugged-in', 'cabin', 'range',
+];
+
 /**
- * Exposes one vehicle as a single HomeKit accessory with read-only services.
+ * Exposes one vehicle to HomeKit, read-only. The vehicle's own accessory holds the lock and battery;
+ * every other sensor is a separate accessory so the Home app gives each its own tile.
  * Nothing here writes to the vehicle.
  */
 export class VehicleAccessory {
@@ -22,8 +29,8 @@ export class VehicleAccessory {
 
   constructor(
     private readonly platform: RivianStatusPlatform,
-    private readonly accessory: PlatformAccessory,
-    vehicle: RivianVehicle,
+    private readonly main: PlatformAccessory,
+    private readonly vehicle: RivianVehicle,
   ) {
     this.S = platform.api.hap.Service;
     this.C = platform.api.hap.Characteristic;
@@ -31,18 +38,24 @@ export class VehicleAccessory {
     // R1T is the only pickup; R1S, R2 and anything newer have a liftgate.
     this.isTruck = /r1t/i.test(vehicle.model ?? '');
 
-    accessory.getService(this.S.AccessoryInformation)!
-      .setCharacteristic(this.C.Manufacturer, 'Rivian')
-      .setCharacteristic(this.C.Model, [vehicle.modelYear, vehicle.model].filter(Boolean).join(' ') || 'Rivian')
-      .setCharacteristic(this.C.SerialNumber, vehicle.vin);
+    this.setInfo(main, vehicle.vin);
+    for (const service of [...main.services]) {
+      if (service.subtype && LEGACY_SUBTYPES.includes(service.subtype)) {
+        main.removeService(service);
+      }
+    }
 
-    this.battery = this.service(this.S.Battery, 'battery', 'Battery');
+    this.battery = this.service(main, this.S.Battery, 'Battery', 'battery');
 
-    this.lock = this.optional(cfg.showLock, this.S.LockMechanism, 'lock', 'Locks');
-    if (this.lock) {
+    const lock = main.getServiceById(this.S.LockMechanism, 'lock');
+    if (cfg.showLock) {
+      this.lock = this.service(main, this.S.LockMechanism, 'Locks', 'lock');
+      this.lock.setPrimaryService(true);
       // Status only: HomeKit requires a target state, so make it read-only.
       const readOnly = { perms: [platform.api.hap.Perms.PAIRED_READ, platform.api.hap.Perms.NOTIFY] };
       this.lock.getCharacteristic(this.C.LockTargetState).setProps(readOnly);
+    } else if (lock) {
+      main.removeService(lock);
     }
 
     this.contact(cfg.showDoors, 'doors', 'Doors', (s) => s.doorsOpen);
@@ -54,22 +67,24 @@ export class VehicleAccessory {
     this.contact(cfg.showChargePort, 'charge-port', 'Charge Port', (s) => s.chargePortOpen);
 
     // HomeKit has no "plugged in" type; an occupancy sensor reads naturally as Detected / Not Detected.
-    this.pluggedIn = this.optional(cfg.showPluggedIn, this.S.OccupancySensor, 'plugged-in', 'Plugged In');
-    // Replaced by the Plugged In sensor in 0.2.0.
-    this.optional(false, this.S.ContactSensor, 'charge-cable', 'Charge Cable');
+    this.pluggedIn = this.sensor(cfg.showPluggedIn, 'plugged-in', this.S.OccupancySensor, 'Plugged In');
 
-    this.cabin = this.optional(cfg.showCabinTemperature, this.S.TemperatureSensor, 'cabin', 'Cabin');
-    if (this.cabin) {
-      this.cabin.getCharacteristic(this.C.CurrentTemperature).setProps({ minValue: -50, maxValue: 100 });
-    }
+    this.cabin = this.sensor(cfg.showCabinTemperature, 'cabin', this.S.TemperatureSensor, 'Cabin');
+    this.cabin?.getCharacteristic(this.C.CurrentTemperature).setProps({ minValue: -50, maxValue: 100 });
 
     // HomeKit has no range characteristic; a light sensor's lux reading is the usual stand-in.
-    this.range = this.optional(cfg.showRangeSensor, this.S.LightSensor, 'range', 'Range');
+    this.range = this.sensor(cfg.showRangeSensor, 'range', this.S.LightSensor, 'Range');
   }
 
-  private service(type: WithUUID<typeof Service>, subtype: string, name: string): Service {
-    const service = this.accessory.getServiceById(type, subtype)
-      ?? this.accessory.addService(type, name, subtype);
+  private setInfo(accessory: PlatformAccessory, serial: string): void {
+    accessory.getService(this.S.AccessoryInformation)!
+      .setCharacteristic(this.C.Manufacturer, 'Rivian')
+      .setCharacteristic(this.C.Model, [this.vehicle.modelYear, this.vehicle.model].filter(Boolean).join(' ') || 'Rivian')
+      .setCharacteristic(this.C.SerialNumber, serial);
+  }
+
+  private service(accessory: PlatformAccessory, type: WithUUID<typeof Service>, name: string, subtype: string): Service {
+    const service = accessory.getServiceById(type, subtype) ?? accessory.addService(type, name, subtype);
     service.setCharacteristic(this.C.Name, name);
     if (!service.testCharacteristic(this.C.ConfiguredName)) {
       service.addOptionalCharacteristic(this.C.ConfiguredName);
@@ -78,22 +93,23 @@ export class VehicleAccessory {
     return service;
   }
 
-  /** Adds the service when enabled, and removes a cached one when it's been turned off. */
-  private optional(enabled: boolean, type: WithUUID<typeof Service>, subtype: string, name: string): Service | undefined {
-    if (enabled) {
-      return this.service(type, subtype, name);
+  /**
+   * Returns the service on the sensor's own accessory when enabled. A disabled sensor's accessory
+   * isn't requested, so the platform removes it.
+   */
+  private sensor(enabled: boolean, key: string, type: WithUUID<typeof Service>, name: string): Service | undefined {
+    if (!enabled) {
+      return undefined;
     }
-    const existing = this.accessory.getServiceById(type, subtype);
-    if (existing) {
-      this.accessory.removeService(existing);
-    }
-    return undefined;
+    const accessory = this.platform.accessoryFor(this.vehicle, key, `${this.vehicle.name} ${name}`);
+    this.setInfo(accessory, `${this.vehicle.vin}-${key}`);
+    return this.service(accessory, type, name, key);
   }
 
-  private contact(enabled: boolean, subtype: string, name: string, isOpen: (s: VehicleStatus) => boolean | undefined): void {
-    const service = this.optional(enabled, this.S.ContactSensor, subtype, name);
+  private contact(enabled: boolean, key: string, name: string, isOpen: (s: VehicleStatus) => boolean | undefined): void {
+    const service = this.sensor(enabled, key, this.S.ContactSensor, name);
     if (service) {
-      this.contacts.set(subtype, { service, isOpen });
+      this.contacts.set(key, { service, isOpen });
     }
   }
 

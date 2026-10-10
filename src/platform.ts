@@ -45,6 +45,7 @@ export class RivianStatusPlatform implements DynamicPlatformPlugin {
   readonly lowBatteryPercent: number;
   private readonly pollMs: number;
   private readonly cached: PlatformAccessory[] = [];
+  private readonly wanted = new Set<string>();
   private readonly vehicles = new Map<string, { vehicle: RivianVehicle; accessory: VehicleAccessory }>();
   private client?: RivianClient;
   private store: AuthStore | null = null;
@@ -109,24 +110,35 @@ export class RivianStatusPlatform implements DynamicPlatformPlugin {
   }
 
   private setupAccessories(vehicles: RivianVehicle[]): void {
-    const wanted = new Set<string>();
+    this.wanted.clear();
     for (const vehicle of vehicles) {
-      const uuid = this.api.hap.uuid.generate(`rivian-status:${vehicle.vin}`);
-      wanted.add(uuid);
-      let accessory = this.cached.find((a) => a.UUID === uuid);
-      if (!accessory) {
-        accessory = new this.api.platformAccessory(vehicle.name, uuid);
-        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-        this.log.info(`Added ${vehicle.name} (${vehicle.model ?? 'Rivian'}).`);
-      }
-      accessory.context.vehicleId = vehicle.id;
-      this.vehicles.set(vehicle.id, { vehicle, accessory: new VehicleAccessory(this, accessory, vehicle) });
+      const main = this.accessoryFor(vehicle);
+      main.context.vehicleId = vehicle.id;
+      this.vehicles.set(vehicle.id, { vehicle, accessory: new VehicleAccessory(this, main, vehicle) });
     }
-    const stale = this.cached.filter((a) => !wanted.has(a.UUID));
+    const stale = this.cached.filter((a) => !this.wanted.has(a.UUID));
     if (stale.length) {
       this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, stale);
-      this.log.info(`Removed ${stale.length} vehicle(s) no longer on your account.`);
+      this.log.info(`Removed ${stale.length} accessory(s): ${stale.map((a) => a.displayName).join(', ')}.`);
     }
+  }
+
+  /**
+   * Gets the cached accessory for a vehicle, or for one of its sensors when `key` is given,
+   * registering it if new. Anything not requested during setup is removed afterwards.
+   */
+  accessoryFor(vehicle: RivianVehicle, key?: string, name = vehicle.name): PlatformAccessory {
+    // The vehicle's own accessory keeps its pre-0.3.0 UUID so its room and automations survive.
+    const uuid = this.api.hap.uuid.generate(key ? `rivian-status:${vehicle.vin}:${key}` : `rivian-status:${vehicle.vin}`);
+    this.wanted.add(uuid);
+    let accessory = this.cached.find((a) => a.UUID === uuid);
+    if (!accessory) {
+      accessory = new this.api.platformAccessory(name, uuid);
+      this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+      this.cached.push(accessory);
+      this.log.info(`Added ${name}.`);
+    }
+    return accessory;
   }
 
   private schedule(): void {

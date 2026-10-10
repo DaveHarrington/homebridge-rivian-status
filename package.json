@@ -1,7 +1,7 @@
 {
   "name": "homebridge-rivian-status",
   "displayName": "Rivian Status",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Read-only Rivian (Gen1 and Gen2) vehicle status in Apple Home via Rivian's cloud API: battery, charging, locks, doors, windows, closures and cabin temperature. Unofficial, not affiliated with Rivian.",
   "license": "MIT",
   "author": "Dave Harrington",
