@@ -1,0 +1,48 @@
+{
+  "name": "homebridge-rivian-status",
+  "displayName": "Rivian Status",
+  "version": "0.2.0",
+  "description": "Read-only Rivian (Gen1 and Gen2) vehicle status in Apple Home via Rivian's cloud API: battery, charging, locks, doors, windows, closures and cabin temperature. Unofficial, not affiliated with Rivian.",
+  "license": "MIT",
+  "author": "Dave Harrington",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DaveHarrington/homebridge-rivian-status.git"
+  },
+  "homepage": "https://github.com/DaveHarrington/homebridge-rivian-status#readme",
+  "bugs": {
+    "url": "https://github.com/DaveHarrington/homebridge-rivian-status/issues"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "homebridge-ui",
+    "config.schema.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": "^18.20.0 || ^20.18.0 || ^22.10.0 || ^24.0.0",
+    "homebridge": "^1.8.0 || ^2.0.0"
+  },
+  "keywords": [
+    "homebridge-plugin",
+    "rivian",
+    "r1t",
+    "r1s"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "test": "npm run build && node --test test/*.test.js",
+    "prepack": "npm run build",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@homebridge/plugin-ui-utils": "^2.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "homebridge": "^2.4.0",
+    "typescript": "^5.9.3"
+  }
+}

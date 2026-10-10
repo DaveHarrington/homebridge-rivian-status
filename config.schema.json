@@ -1,0 +1,51 @@
+{
+  "pluginAlias": "RivianStatus",
+  "pluginType": "platform",
+  "singular": true,
+  "customUi": true,
+  "headerDisplay": "Read-only Rivian status in Apple Home. Sign in above; your password is not saved, only the session token Rivian returns.",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": { "title": "Name", "type": "string", "default": "Rivian Status", "required": true },
+      "pollIntervalSeconds": {
+        "title": "Poll interval (seconds)",
+        "type": "integer",
+        "default": 120,
+        "minimum": 30,
+        "description": "How often to read the vehicle's last-known state from Rivian's cloud. Reading does not wake the vehicle."
+      },
+      "lowBatteryPercent": {
+        "title": "Low battery at (%)",
+        "type": "integer",
+        "default": 20,
+        "minimum": 0,
+        "maximum": 100
+      },
+      "rangeUnit": {
+        "title": "Range unit",
+        "type": "string",
+        "default": "mi",
+        "oneOf": [
+          { "title": "Miles", "enum": ["mi"] },
+          { "title": "Kilometers", "enum": ["km"] }
+        ]
+      },
+      "showLock": { "title": "Locks (status only)", "type": "boolean", "default": true },
+      "showDoors": { "title": "Doors contact sensor", "type": "boolean", "default": true },
+      "showWindows": { "title": "Windows contact sensor", "type": "boolean", "default": true },
+      "showFrunk": { "title": "Frunk contact sensor", "type": "boolean", "default": true },
+      "showRearClosure": { "title": "Liftgate / tailgate contact sensor", "type": "boolean", "default": true },
+      "showTonneau": { "title": "Tonneau contact sensor (R1T)", "type": "boolean", "default": true },
+      "showChargePort": { "title": "Charge port door contact sensor", "type": "boolean", "default": true },
+      "showPluggedIn": { "title": "Plugged In sensor (shows Detected when the charge cable is connected)", "type": "boolean", "default": true },
+      "showCabinTemperature": { "title": "Cabin temperature sensor", "type": "boolean", "default": true },
+      "showRangeSensor": {
+        "title": "Range as a light sensor (lux = miles or km)",
+        "type": "boolean",
+        "default": false,
+        "description": "HomeKit has no range type, so this reports range as a light level. Useful for automations like \"when range drops below 50\"."
+      }
+    }
+  }
+}

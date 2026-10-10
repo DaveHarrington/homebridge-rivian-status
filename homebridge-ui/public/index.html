@@ -1,0 +1,127 @@
+<div class="card card-body mb-3">
+  <h5 class="card-title">Rivian account</h5>
+
+  <div id="signed-in" style="display: none;">
+    <p class="mb-1">Signed in as <strong id="account-email"></strong>.</p>
+    <ul id="vehicle-list" class="mb-2"></ul>
+    <p class="small text-muted mb-2">
+      Restart Homebridge after signing in for the first time, or if you add a vehicle to your account.
+    </p>
+    <button id="sign-out" type="button" class="btn btn-outline-danger btn-sm">Sign out</button>
+    <button id="sign-in-again" type="button" class="btn btn-outline-primary btn-sm">Sign in again</button>
+  </div>
+
+  <form id="login-form" style="display: none;">
+    <p class="small text-muted">
+      Use the email and password from the Rivian app. Your password goes to Rivian only and isn't saved;
+      the plugin keeps the session token Rivian returns, in Homebridge's storage folder.
+    </p>
+    <div class="form-group mb-2">
+      <label for="email">Email</label>
+      <input id="email" type="email" class="form-control" autocomplete="username" required>
+    </div>
+    <div class="form-group mb-2">
+      <label for="password">Password</label>
+      <input id="password" type="password" class="form-control" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Sign in</button>
+    <p class="small text-muted mt-2 mb-0">The plugin's other settings appear here once you're signed in.</p>
+  </form>
+
+  <form id="otp-form" style="display: none;">
+    <p>Rivian sent you a verification code. Enter it below.</p>
+    <div class="form-group mb-2">
+      <label for="otp">Verification code</label>
+      <input id="otp" type="text" class="form-control" inputmode="numeric" autocomplete="one-time-code" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Verify</button>
+    <button id="otp-cancel" type="button" class="btn btn-link">Start over</button>
+  </form>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const sections = ['signed-in', 'login-form', 'otp-form'];
+
+  function show(id) {
+    for (const s of sections) {
+      $(s).style.display = s === id ? '' : 'none';
+    }
+    // The modal's Save button doesn't sign in, so keep it and the settings out of the way until signed in.
+    if (id === 'signed-in') {
+      homebridge.showSchemaForm();
+      homebridge.enableSaveButton();
+    } else {
+      homebridge.hideSchemaForm();
+      homebridge.disableSaveButton();
+    }
+  }
+
+  function renderSignedIn(email, vehicles) {
+    $('account-email').textContent = email;
+    const list = $('vehicle-list');
+    list.replaceChildren(...vehicles.map((v) => {
+      const li = document.createElement('li');
+      li.textContent = [v.name, [v.modelYear, v.model].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
+      return li;
+    }));
+    if (!vehicles.length) {
+      list.innerHTML = '<li>No vehicles found on this account.</li>';
+    }
+    show('signed-in');
+  }
+
+  async function call(path, body) {
+    homebridge.showSpinner();
+    try {
+      return await homebridge.request(path, body);
+    } catch (err) {
+      homebridge.toast.error(err.message || String(err), 'Rivian');
+      throw err;
+    } finally {
+      homebridge.hideSpinner();
+    }
+  }
+
+  async function signedIn(result) {
+    homebridge.toast.success(`Found ${result.vehicles.length} vehicle(s).`, 'Signed in');
+    const status = await homebridge.request('/status');
+    renderSignedIn(status.email, status.vehicles);
+  }
+
+  $('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const result = await call('/login', { email: $('email').value, password: $('password').value });
+    $('password').value = '';
+    if (result.otpRequired) {
+      $('otp').value = '';
+      show('otp-form');
+      $('otp').focus();
+    } else {
+      await signedIn(result);
+    }
+  });
+
+  $('otp-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await signedIn(await call('/verify-otp', { code: $('otp').value }));
+  });
+
+  $('otp-cancel').addEventListener('click', () => show('login-form'));
+  $('sign-in-again').addEventListener('click', () => show('login-form'));
+  $('sign-out').addEventListener('click', async () => {
+    await call('/sign-out');
+    homebridge.toast.info('Signed out. Restart Homebridge to stop status updates.', 'Rivian');
+    show('login-form');
+  });
+
+  homebridge.addEventListener('ready', async () => {
+    const status = await homebridge.request('/status');
+    if (status.signedIn) {
+      $('email').value = status.email;
+      renderSignedIn(status.email, status.vehicles);
+    } else {
+      show('login-form');
+    }
+  });
+</script>
