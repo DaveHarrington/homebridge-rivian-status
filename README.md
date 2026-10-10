@@ -16,7 +16,7 @@ vehicle (for example "R1S Doors"), so the Home app gives each its own tile:
 | Charge | Charge % on the tile, plus charging state and low battery | Shown as a humidity sensor, the only type Home shows a % for on the tile, so automations read "humidity". Low battery threshold is configurable (default 20%). |
 | Lock | Locked when all four doors are locked | Status only; it can't lock or unlock. |
 | Contact sensors | Doors, Windows, Frunk, Liftgate (R1S, R2) or Tailgate and Tonneau (R1T), Charge Port | "Open" if any one is open. |
-| Plugged In | Occupancy sensor: Detected while the charge cable is connected | |
+| Charger | Outlet: On while plugged in, In Use while charging | Read-only; tapping it does nothing. HomeKit has no EV charger type. |
 | Cabin | Interior temperature | |
 | Range | Light sensor where lux = miles or km | Off by default. HomeKit has no range type. |
 

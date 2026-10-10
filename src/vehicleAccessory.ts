@@ -24,7 +24,7 @@ export class VehicleAccessory {
   private readonly battery?: Service;
   private readonly lock?: Service;
   private readonly contacts = new Map<string, { service: Service; isOpen: (s: VehicleStatus) => boolean | undefined }>();
-  private readonly pluggedIn?: Service;
+  private readonly charger?: Service;
   private readonly cabin?: Service;
   private readonly range?: Service;
 
@@ -73,8 +73,11 @@ export class VehicleAccessory {
     this.contact(cfg.showTonneau && this.isTruck, 'tonneau', 'Tonneau', (s) => s.tonneauOpen);
     this.contact(cfg.showChargePort, 'charge-port', 'Charge Port', (s) => s.chargePortOpen);
 
-    // HomeKit has no "plugged in" type; an occupancy sensor reads naturally as Detected / Not Detected.
-    this.pluggedIn = this.sensor(cfg.showPluggedIn, 'plugged-in', this.S.OccupancySensor, 'Plugged In');
+    // HomeKit has no EV charger type. An outlet is the closest: On = plugged in, In Use = charging.
+    // Read-only, since this plugin never sends commands.
+    this.charger = this.sensor(cfg.showCharger, 'charger', this.S.Outlet, 'Charger');
+    this.charger?.getCharacteristic(this.C.On)
+      .setProps({ perms: [platform.api.hap.Perms.PAIRED_READ, platform.api.hap.Perms.NOTIFY] });
 
     this.cabin = this.sensor(cfg.showCabinTemperature, 'cabin', this.S.TemperatureSensor, 'Cabin');
     this.cabin?.getCharacteristic(this.C.CurrentTemperature).setProps({ minValue: -50, maxValue: 100 });
@@ -154,11 +157,8 @@ export class VehicleAccessory {
       }
     }
 
-    if (status.pluggedIn !== undefined) {
-      set(this.pluggedIn, C.OccupancyDetected, status.pluggedIn
-        ? C.OccupancyDetected.OCCUPANCY_DETECTED
-        : C.OccupancyDetected.OCCUPANCY_NOT_DETECTED);
-    }
+    set(this.charger, C.On, status.pluggedIn);
+    set(this.charger, C.OutletInUse, status.charging);
 
     set(this.cabin, C.CurrentTemperature, status.cabinTempC);
 

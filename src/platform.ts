@@ -19,8 +19,9 @@ interface RivianStatusConfig extends PlatformConfig {
   showRearClosure?: boolean;
   showTonneau?: boolean;
   showChargePort?: boolean;
+  showCharger?: boolean;
+  /** Older names for showCharger. */
   showPluggedIn?: boolean;
-  /** Pre-0.2.0 name for showPluggedIn. */
   showChargeCable?: boolean;
   showCabinTemperature?: boolean;
   showRangeSensor?: boolean;
@@ -36,7 +37,7 @@ export interface DisplayConfig {
   showRearClosure: boolean;
   showTonneau: boolean;
   showChargePort: boolean;
-  showPluggedIn: boolean;
+  showCharger: boolean;
   showCabinTemperature: boolean;
   showRangeSensor: boolean;
 }
@@ -66,7 +67,7 @@ export class RivianStatusPlatform implements DynamicPlatformPlugin {
       showRearClosure: on(c.showRearClosure),
       showTonneau: on(c.showTonneau),
       showChargePort: on(c.showChargePort),
-      showPluggedIn: on(c.showPluggedIn ?? c.showChargeCable),
+      showCharger: on(c.showCharger ?? c.showPluggedIn ?? c.showChargeCable),
       showCabinTemperature: on(c.showCabinTemperature),
       showRangeSensor: c.showRangeSensor ?? false,
     };

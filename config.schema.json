@@ -44,7 +44,7 @@
       "showRearClosure": { "title": "Liftgate / tailgate contact sensor", "type": "boolean", "default": true },
       "showTonneau": { "title": "Tonneau contact sensor (R1T)", "type": "boolean", "default": true },
       "showChargePort": { "title": "Charge port door contact sensor", "type": "boolean", "default": true },
-      "showPluggedIn": { "title": "Plugged In sensor (shows Detected when the charge cable is connected)", "type": "boolean", "default": true },
+      "showCharger": { "title": "Charger outlet (On = plugged in, In Use = charging; read-only)", "type": "boolean", "default": true },
       "showCabinTemperature": { "title": "Cabin temperature sensor", "type": "boolean", "default": true },
       "showRangeSensor": {
         "title": "Range as a light sensor (lux = miles or km)",
